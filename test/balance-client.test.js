@@ -227,6 +227,7 @@ describe('#balance-client', function() {
                 { config: { port: 44441, pin: 'a:1' } },
                 function () {
                   c0.act('a:1', function (e, o) {
+                    console.log(o.x)
                     expect(o.x).to.equal(0)
 
                     c0.act('a:1', function (e, o) {

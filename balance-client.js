@@ -5,6 +5,7 @@
 const _ = require('lodash');
 //const Eraro = require('eraro')
 const Jsonic = require('jsonic');
+const visigoth = require('visigoth');
 // const Optioner = require('optioner')
 // const Joi = Optioner.Joi
 
@@ -144,6 +145,8 @@ function balance_client(options) {
     }
 
     if (i < targetstate.targets.length) {
+      targetstate.visigoth.remove(targetstate.targets.length);
+      targetstate.visigoth.lastChoosenIndex$ = -1;
       targetstate.targets.splice(i, 1);
       targetstate.index = 0;
       found = true;
@@ -287,18 +290,41 @@ function balance_client(options) {
 
   function consumeModel(seneca, msg, targetstate, done, meta) {
     var targets = targetstate.targets;
-    var index = targetstate.index;
+    var trys = 0;
 
-    if (!targets[index]) {
-      index = targetstate.index = 0;
+    function try_call() {
+      targetstate.visigoth.choose(function (err, index, errored) {
+        if (err || !targets[index]) {
+          index = targetstate.index = 0;
+        }
+
+        if (!targets[index]) {
+          targetstate.index = 0;
+          return done(seneca.error('no-current-target', { msg: msg }));
+        }
+
+        targets[index].action.call(
+          seneca,
+          msg,
+          function (err) {
+            if (err) {
+              errored();
+
+              if (++trys < 3) {
+                return try_call();
+              }
+            }
+            done.apply(done, arguments);
+          },
+          meta
+        );
+        if (targets.length === 1) {
+          targetstate.visigoth.lastChoosenIndex$ = -1;
+        }
+      });
     }
 
-    if (!targets[index]) {
-      return done(seneca.error('no-current-target', { msg: msg }));
-    }
-
-    targets[index].action.call(seneca, msg, done, meta);
-    targetstate.index = (index + 1) % targets.length;
+    try_call();
   }
 }
 
@@ -307,7 +333,7 @@ function add_target(seneca, target_map, config, pat, action) {
   var targetstate = target_map[patkey];
   var add = true;
 
-  targetstate = targetstate || { index: 0, targets: [] };
+  targetstate = targetstate || { index: 0, targets: [], visigoth: visigoth() };
   target_map[patkey] = targetstate;
 
   // don't add duplicates
@@ -319,6 +345,7 @@ function add_target(seneca, target_map, config, pat, action) {
   }
 
   if (add) {
+    targetstate.visigoth.add(targetstate.targets.length);
     targetstate.targets.push({
       action: action,
       id: action.id,

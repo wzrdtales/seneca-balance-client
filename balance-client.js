@@ -145,7 +145,7 @@ function balance_client(options) {
     }
 
     if (i < targetstate.targets.length) {
-      targetstate.visigoth.remove(targetstate.targets.length);
+      targetstate.visigoth.remove(i);
       targetstate.visigoth.lastChoosenIndex$ = -1;
       targetstate.targets.splice(i, 1);
       targetstate.index = 0;
@@ -296,9 +296,6 @@ function balance_client(options) {
       targetstate.visigoth.choose(function (err, index, errored) {
         if (err || !targets[index]) {
           index = targetstate.index = 0;
-        }
-
-        if (!targets[index]) {
           targetstate.index = 0;
           return done(seneca.error('no-current-target', { msg: msg }));
         }

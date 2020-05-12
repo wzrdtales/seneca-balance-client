@@ -293,7 +293,7 @@ function balance_client(options) {
     var trys = 0;
 
     function try_call() {
-      targetstate.visigoth.choose(function (err, index, errored) {
+      targetstate.visigoth.choose(function (err, index, errored, stats) {
         if (err || !targets[index]) {
           index = targetstate.index = 0;
           targetstate.index = 0;
@@ -310,6 +310,8 @@ function balance_client(options) {
               if (++trys < 3) {
                 return try_call();
               }
+            } else {
+              stats.responseTime = new Date() - meta.start;
             }
             done.apply(done, arguments);
           },
@@ -329,8 +331,15 @@ function add_target(seneca, target_map, config, pat, action) {
   var patkey = make_patkey(seneca, pat);
   var targetstate = target_map[patkey];
   var add = true;
+  var circuitBreaker = seneca.options().transport.balance.circuitBreaker || {
+    closingTimeout: 1000,
+  };
 
-  targetstate = targetstate || { index: 0, targets: [], visigoth: visigoth() };
+  targetstate = targetstate || {
+    index: 0,
+    targets: [],
+    visigoth: visigoth(circuitBreaker),
+  };
   target_map[patkey] = targetstate;
 
   // don't add duplicates

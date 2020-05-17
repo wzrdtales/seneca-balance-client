@@ -5,7 +5,7 @@
 const _ = require('lodash');
 //const Eraro = require('eraro')
 const Jsonic = require('jsonic');
-const visigoth = require('visigoth');
+const visigoth = require('@wzrdtales/visigoth');
 // const Optioner = require('optioner')
 // const Joi = Optioner.Joi
 

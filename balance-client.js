@@ -145,7 +145,7 @@ function balance_client(options) {
     }
 
     if (i < targetstate.targets.length) {
-      targetstate.visigoth.remove(i);
+      targetstate.visigoth.remove(targetstate.targets.length - 1);
       targetstate.visigoth.lastChoosenIndex$ = -1;
       targetstate.targets.splice(i, 1);
       targetstate.index = 0;

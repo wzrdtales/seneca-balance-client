@@ -43,9 +43,14 @@ balance_client.errors = {
 const global_target_map = {};
 
 var global_options = { debug: {} };
+var circuitBreaker;
 
 balance_client.preload = function () {
   var seneca = this;
+
+  circuitBreaker = seneca.options().transport.balance.circuitBreaker || {
+    closingTimeout: 1000,
+  };
 
   seneca.options({
     transport: {
@@ -300,15 +305,27 @@ function balance_client(options) {
           return done(seneca.error('no-current-target', { msg: msg }));
         }
 
+        if (trys > 0) {
+          meta.mi += trys;
+          meta.tx += trys;
+          meta.id = `${meta.mi}/${meta.tx}`;
+        }
+
         targets[index].action.call(
           seneca,
           msg,
           function (err) {
             if (err) {
               errored();
+              if (err.details.message === 'retry_later_err_overload') {
+                if (++trys < 3) {
+                  return setTimeout(
+                    () => try_call(),
+                    circuitBreaker.closingTimeout + 100
+                  );
+                }
 
-              if (++trys < 3) {
-                return try_call();
+                return done(seneca.error('all-targets-overloaded', { msg }));
               }
             } else {
               stats.responseTime = new Date() - meta.start;
@@ -331,9 +348,6 @@ function add_target(seneca, target_map, config, pat, action) {
   var patkey = make_patkey(seneca, pat);
   var targetstate = target_map[patkey];
   var add = true;
-  var circuitBreaker = seneca.options().transport.balance.circuitBreaker || {
-    closingTimeout: 1000,
-  };
 
   targetstate = targetstate || {
     index: 0,

@@ -48,9 +48,10 @@ var circuitBreaker;
 balance_client.preload = function () {
   var seneca = this;
 
-  circuitBreaker = seneca.options().transport.balance.circuitBreaker || {
-    closingTimeout: 1000,
-  };
+  var t = seneca.options().transport || {};
+  t = t.balance || {};
+  t = t.circuitBreaker || { closingTimeout: 1000 };
+  circuitBreaker = t.circuitBreaker;
 
   seneca.options({
     transport: {

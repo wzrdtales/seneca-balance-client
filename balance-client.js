@@ -30,12 +30,12 @@ var error = Eraro({
 module.exports = balance_client;
 balance_client.defaults = {
   debug: {
-    client_updates: false
-  }
+    client_updates: false,
+  },
 };
 balance_client.errors = {
   'no-target': 'No targets have been registered for message <%=msg%>',
-  'no-current-target': 'No targets are currently active for message <%=msg%>'
+  'no-current-target': 'No targets are currently active for message <%=msg%>',
 };
 
 // Not as bad as it looks - seneca.id is used at top level to isolate instances.
@@ -45,7 +45,7 @@ const global_target_map = {};
 var global_options = { debug: {} };
 var circuitBreaker;
 
-balance_client.preload = function() {
+balance_client.preload = function () {
   var seneca = this;
 
   var t = seneca.options().transport || {};
@@ -56,28 +56,28 @@ balance_client.preload = function() {
   seneca.options({
     transport: {
       balance: {
-        makehandle: function(config) {
+        makehandle: function (config) {
           global_target_map[seneca.id] = global_target_map[seneca.id] || {
-            id: seneca.id
+            id: seneca.id,
           };
           var instance_map = global_target_map[seneca.id];
 
           instance_map[config.pg] = instance_map[config.pg] || {
             pg: config.pg,
-            id: Math.random()
+            id: Math.random(),
           };
           var target_map = instance_map[config.pg];
 
           target_map.pg = config.pg;
 
           //return function(pat, action) {
-          return function(actdef) {
+          return function (actdef) {
             var pat = actdef.client_pattern || actdef.pattern;
             add_target(seneca, target_map, config, pat, actdef.func);
           };
-        }
-      }
-    }
+        },
+      },
+    },
   });
 };
 
@@ -90,7 +90,7 @@ function balance_client(options) {
 
     // legacy
     publish: observeModel,
-    actor: consumeModel
+    actor: consumeModel,
   };
 
   // options = optioner.check(options)
@@ -103,7 +103,7 @@ function balance_client(options) {
     {
       role: 'transport',
       hook: 'client',
-      type: 'balance'
+      type: 'balance',
     },
     hook_client
   );
@@ -112,7 +112,7 @@ function balance_client(options) {
     {
       role: 'transport',
       type: 'balance',
-      add: 'client'
+      add: 'client',
     },
     add_client
   );
@@ -121,7 +121,7 @@ function balance_client(options) {
     {
       role: 'transport',
       type: 'balance',
-      remove: 'client'
+      remove: 'client',
     },
     remove_client
   );
@@ -130,7 +130,7 @@ function balance_client(options) {
     {
       role: 'transport',
       type: 'balance',
-      get: 'target-map'
+      get: 'target-map',
     },
     get_client_map
   );
@@ -188,7 +188,7 @@ function balance_client(options) {
 
     var pins = msg.config.pin ? [msg.config.pin] : msg.config.pins;
 
-    _.each(pins, function(pin) {
+    _.each(pins, function (pin) {
       remove_target(target_map, pin, msg.config);
     });
 
@@ -219,7 +219,7 @@ function balance_client(options) {
 
     // legacy transport
     if (tu.make_client) {
-      var make_send = function(spec, topic, send_done) {
+      var make_send = function (spec, topic, send_done) {
         seneca.log.debug(
           'client',
           'send',
@@ -228,7 +228,7 @@ function balance_client(options) {
           seneca
         );
 
-        send_done(null, function(msg, done, meta) {
+        send_done(null, function (msg, done, meta) {
           var patkey = (meta || msg.meta$).pattern;
           var targetstate = target_map[patkey];
 
@@ -243,7 +243,7 @@ function balance_client(options) {
     } else {
       // console.log('BC A ', pg)
 
-      var send_msg = function(msg, reply, meta) {
+      var send_msg = function (msg, reply, meta) {
         msg = tu.externalize_msg(seneca, msg);
 
         var msg_meta = meta || msg.meta$;
@@ -262,11 +262,11 @@ function balance_client(options) {
 
       return clientdone({
         config: msg,
-        send: send_msg
+        send: send_msg,
       });
     }
 
-    seneca.add('role:seneca,cmd:close', function(close_msg, done) {
+    seneca.add('role:seneca,cmd:close', function (close_msg, done) {
       var closer = this;
       closer.prior(close_msg, done);
     });
@@ -283,7 +283,7 @@ function balance_client(options) {
       target.action.call(
         seneca,
         msg,
-        function() {
+        function () {
           if (first) {
             done.apply(seneca, arguments);
             first = false;
@@ -299,7 +299,7 @@ function balance_client(options) {
     var trys = 0;
 
     function try_call() {
-      targetstate.visigoth.choose(function(err, index, errored, stats) {
+      targetstate.visigoth.choose(function (err, index, errored, stats) {
         if (err || !targets[index]) {
           index = targetstate.index = 0;
           targetstate.index = 0;
@@ -315,7 +315,8 @@ function balance_client(options) {
         targets[index].action.call(
           seneca,
           msg,
-          function(err) {
+          function (err) {
+            seneca.log.error('execute_err', err);
             if (err) {
               if (err.details.message === 'retry_later_err_overload') {
                 // only error on controlled overload errors
@@ -354,7 +355,7 @@ function add_target(seneca, target_map, config, pat, action) {
   targetstate = targetstate || {
     index: 0,
     targets: [],
-    visigoth: visigoth(circuitBreaker)
+    visigoth: visigoth(circuitBreaker),
   };
   target_map[patkey] = targetstate;
 
@@ -371,7 +372,7 @@ function add_target(seneca, target_map, config, pat, action) {
     targetstate.targets.push({
       action: action,
       id: action.id,
-      config: config
+      config: config,
     });
   }
 
@@ -388,7 +389,7 @@ function make_patkey(seneca, pat) {
   var keys = _.keys(seneca.util.clean(pat)).sort();
   var cleanpat = {};
 
-  _.each(keys, function(k) {
+  _.each(keys, function (k) {
     cleanpat[k] = pat[k];
   });
 
